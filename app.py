@@ -10,6 +10,7 @@ import streamlit as st
 import sqlalchemy as db
 from sqlalchemy.orm import sessionmaker
 import io
+import os 
 
 # Configuración de la base de datos
 engine = db.create_engine('sqlite:///keys.db')
@@ -53,7 +54,9 @@ def get_key_id(email):
 
 # Función para firmar el documento
 def sign_document(document_data, key_id):
-    gpg = gnupg.GPG()
+    gpg_home = os.path.expanduser('~/.gnupg')  
+    gpg = gnupg.GPG(gnupghome=gpg_home)
+    #gpg = gnupg.GPG()
     
     if not key_id:
         return None, 'No se encontró el key_id asociado al correo proporcionado.'
@@ -66,7 +69,9 @@ def sign_document(document_data, key_id):
 
 # Función para verificar el documento firmado
 def verify_document(signed_data, email):
-    gpg = gnupg.GPG()
+    gpg_home = os.path.expanduser('~/.gnupg')  
+    gpg = gnupg.GPG(gnupghome=gpg_home)
+    # gpg = gnupg.GPG()
     
     key_id = get_key_id(email)
     if not key_id:
