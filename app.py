@@ -127,7 +127,7 @@ if sidebar_option == 'Firmar documento':
 
 elif sidebar_option == 'Verificar documento':
     st.subheader('Verificar documento')
-    comment = st.text_input('Ingrese el comentario del propietario de la clave pública')
+    comment = st.text_input('Ingrese el usuario del propietario de la clave pública')
     uploaded_file = st.file_uploader('Selecciona el archivo firmado')
 
     if st.button('Verificar documento'):
@@ -139,7 +139,7 @@ elif sidebar_option == 'Verificar documento':
             else:
                 st.error(message)
         else:
-            st.error('Por favor, selecciona un archivo y proporciona el comentario del propietario de la clave pública.')
+            st.error('Por favor, selecciona un archivo y proporciona el usuario del propietario de la clave pública.')
 
 elif sidebar_option == 'Añadir llave pública':
     st.subheader('Añadir llave pública')
