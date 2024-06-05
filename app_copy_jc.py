@@ -10,6 +10,7 @@ import streamlit as st
 import sqlalchemy as db
 from sqlalchemy.orm import sessionmaker
 import io
+from PIL import Image
 
 # Configuración de la base de datos
 engine = db.create_engine('sqlite:///keys.db')
@@ -79,7 +80,15 @@ def verify_document(signed_data, email):
 
 # Interfaz de Streamlit
 st.title('Documento Seguro: Firmado y verificación de documentos')
-st.subheader('Sigue al congreso')
+
+st.subheader('Sigue al Congreso')
+
+imagen_original = Image.open("images/logo.jpg")
+# Redimensiona la imagen
+nuevo_ancho = 200  # Define el nuevo ancho
+nuevo_alto = int((nuevo_ancho / imagen_original.width) * imagen_original.height)  # Mantén la proporción
+imagen_redimensionada = imagen_original.resize((nuevo_ancho, nuevo_alto))
+st.image(imagen_redimensionada)
 
 st.caption('Bienvenido a Documento Seguro, una aplicación avanzada diseñada para firmar y validar documentos electrónicamente, asegurando la autenticidad e integridad de la información contenida. Con esta app, los usuarios de Sigue al congreso pueden aplicar firmas digitales a sus documentos que garantiza que el contenido no ha sido alterado desde su firma. La aplicación utiliza tecnología de cifrado robusta, compatible con estándares de seguridad globales, para ofrecer una solución confiable tanto para individuos como para empresas que buscan proteger sus documentos sensibles.')
 
