@@ -4,7 +4,7 @@ Created on Mon May 27 07:59:44 2024
 
 @author: Equipo 2
 """
-"""
+
 import gnupg
 import streamlit as st
 import gspread
@@ -18,43 +18,50 @@ creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", sco
 client = gspread.authorize(creds)
 
 # Abre la Google Sheet
-sheet = client.open("keys_database").sheet1 
+sheet = client.open("keys_database").sheet1
 
 # Función para agregar una clave pública a la base de datos
 def add_public_key(email, key_id, comment):
     existing_records = sheet.get_all_records()
     new_id = len(existing_records) + 1  # Genera un nuevo ID
-    new_key = [new_id, email, comment, key_id]
+    new_key = [new_id, email.lower(), comment.lower(), key_id]
     sheet.append_row(new_key)
 
 # Función para eliminar una clave pública de la base de datos
 def delete_public_key(email, comment):
-    cells = sheet.findall(email)
+    cells = sheet.findall(email.lower())
     for cell in cells:
         row = cell.row
         row_values = sheet.row_values(row)
-        if row_values[2] == comment:  # Verifica si el comentario coincide
+        if row_values[2] == comment.lower():  # Verifica si el comentario coincide
             sheet.delete_rows(row)
             return True
     return False
 
-# Función para obtener el key_id asociado a un correo
-def get_key_id(email):
-    cell = sheet.find(email)
-    if cell:
-        row = cell.row
-        row_values = sheet.row_values(row)
-        return row_values[3]  # key_id está en la cuarta columna
-    else:
-        return None
+# Función para obtener el key_id y la clave pública asociada a un comentario
+def get_key_id_by_comment(comment):
+    records = sheet.get_all_records()
+    for record in records:
+        if record['comment'] == comment.lower():
+            return record['key_id'], record['public_key']
+    return None, None
+
+# Función para exportar la clave pública y guardarla en la base de datos
+def export_and_store_public_key(email, key_id, comment):
+    gpg = gnupg.GPG()
+    public_key = gpg.export_keys(key_id)
+    if not public_key:
+        return False, 'Error al exportar la clave pública.'
+
+    add_public_key(email, key_id, comment)
+    return True, 'Clave pública exportada y guardada correctamente.'
 
 # Función para firmar el documento
 def sign_document(document_data, key_id):
     gpg = gnupg.GPG()
-    
     if not key_id:
-        return None, 'No se encontró el key_id asociado al correo proporcionado.'
-    
+        return None, 'No se encontró el key_id asociado al comentario proporcionado.'
+
     # Firmar el documento
     signature = gpg.sign(document_data, keyid=key_id)
     
@@ -62,13 +69,20 @@ def sign_document(document_data, key_id):
     return signature.data, None
 
 # Función para verificar el documento firmado
-def verify_document(signed_data, email):
+def verify_document(signed_data, comment):
     gpg = gnupg.GPG()
+    key_id, public_key = get_key_id_by_comment(comment)
     
-    key_id = get_key_id(email)
     if not key_id:
-        return False, 'No hay una llave pública asignada al correo ingresado.'
-    
+        return False, 'No hay una llave pública asignada al comentario ingresado.'
+
+    # Verificar si la clave ya está en el llavero
+    if not any(key['keyid'] == key_id for key in gpg.list_keys()):
+        # Importar la clave pública
+        import_result = gpg.import_keys(public_key)
+        if import_result.count == 0:
+            return False, 'Error al importar la llave pública.'
+
     # Verificar la firma
     verified = gpg.verify(signed_data)
     
@@ -76,7 +90,6 @@ def verify_document(signed_data, email):
 
 # Interfaz de Streamlit
 st.title('Documento Seguro: Firmado y verificación de documentos')
-
 st.subheader('Sigue al Congreso')
 
 imagen_original = Image.open("images/logo.jpg")
@@ -100,66 +113,63 @@ if sidebar_option == 'Firmar documento':
     if st.button('Firmar'):
         if uploaded_file and key_id:
             document_data = uploaded_file.read()
-            key_id = key_id
-            if key_id:
-                signed_data, error = sign_document(document_data, key_id)
-                if error:
-                    st.error(error)
-                else:
-                    signed_file = io.BytesIO(signed_data)
-                    signed_file_name = uploaded_file.name + '.asc'
-                    st.download_button(
-                        label='Descargar documento firmado',
-                        data=signed_file,
-                        file_name=signed_file_name,
-                        mime='application/pgp-signature'
-                    )
+            signed_data, error = sign_document(document_data, key_id)
+            if error:
+                st.error(error)
             else:
-                st.error('No se encontró el key_id asociado al correo proporcionado.')
+                signed_file = io.BytesIO(signed_data)
+                signed_file_name = uploaded_file.name + '.asc'
+                st.download_button(
+                    label='Descargar documento firmado',
+                    data=signed_file,
+                    file_name=signed_file_name,
+                    mime='application/pgp-signature'
+                )
         else:
-            st.error('Por favor, proporciona el archivo y el correo asociado.')
+            st.error('Por favor, proporciona el archivo y la llave privada.')
 
 elif sidebar_option == 'Verificar documento':
     st.subheader('Verificar documento')
-    email = st.text_input('Ingrese el correo de la persona que firmó el documento')
+    comment = st.text_input('Ingrese el usuario del propietario de la clave pública')
     uploaded_file = st.file_uploader('Selecciona el archivo firmado')
 
     if st.button('Verificar documento'):
-        if uploaded_file and email:
+        if uploaded_file and comment:
             signed_data = uploaded_file.read()
-            verified, message = verify_document(signed_data, email)
+            verified, message = verify_document(signed_data, comment)
             if verified:
                 st.success(message)
             else:
                 st.error(message)
         else:
-            st.error('Por favor, selecciona un archivo y proporciona el correo asociado.')
+            st.error('Por favor, selecciona un archivo y proporciona el usuario del propietario de la clave pública.')
 
 elif sidebar_option == 'Añadir llave pública':
     st.subheader('Añadir llave pública')
-    email_input = st.text_input('Ingresa el correo asociado a la llave')
-    key_id_input = st.text_input('Ingresa el key_id asociado a la llave')
-    comment_input = st.text_input('Ingresa el comentario asociado la llave')
+    comment_input = st.text_input('Ingresa el comentario (usuario) asociado a la llave').lower()
+    key_id_input = st.text_input('Ingresa el key_id público asociado a la llave')
+    email_input = st.text_input('Ingresa el correo asociado la llave').lower()
     
     if st.button('Añadir'):
         if email_input and key_id_input and comment_input:
-            add_public_key(email_input, key_id_input, comment_input)
-            st.success('Llave pública cargada correctamente.')
+            success, message = export_and_store_public_key(email_input, key_id_input, comment_input)
+            if success:
+                st.success(message)
+            else:
+                st.error(message)
         else:
             st.error('Por favor, proporciona el correo, el key_id y el comentario.')
 
-# Agrega una opción para eliminar la llave pública en la barra lateral
 elif sidebar_option == 'Eliminar llave pública':
     st.subheader('Eliminar llave pública')
-    email_to_delete = st.text_input('Ingresa el correo asociado a la llave que deseas eliminar')
-    comment_to_delete = st.text_input('Ingresa el comentario asociado a la llave que deseas eliminar')
+    comment_to_delete = st.text_input('Ingresa el comentario (usuario) asociado a la llave que deseas eliminar').lower()
+    email_to_delete = st.text_input('Ingresa el correo asociado a la llave que deseas eliminar').lower()
 
     if st.button('Eliminar'):
-        if email_to_delete and comment_to_delete:
+        if comment_to_delete and email_to_delete:
             if delete_public_key(email_to_delete, comment_to_delete):
                 st.success('Llave pública eliminada correctamente.')
             else:
                 st.error('No se encontró ninguna llave pública con el correo y comentario proporcionados.')
         else:
             st.error('Por favor, proporciona el correo y el comentario asociados a la llave que deseas eliminar.')
-"""
