@@ -18,13 +18,13 @@ creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", sco
 client = gspread.authorize(creds)
 
 # Abre la Google Sheet
-sheet = client.open("keys_database").sheet1
+sheet = client.open("keys_database").sheet1  # Cambia "Nombre de tu Google Sheet" por el nombre de tu hoja
 
 # Función para agregar una clave pública a la base de datos
-def add_public_key(email, key_id, comment):
+def add_public_key(email, key_id, comment, public_key):
     existing_records = sheet.get_all_records()
     new_id = len(existing_records) + 1  # Genera un nuevo ID
-    new_key = [new_id, email.lower(), comment.lower(), key_id]
+    new_key = [new_id, email.lower(), comment.lower(), key_id, public_key]
     sheet.append_row(new_key)
 
 # Función para eliminar una clave pública de la base de datos
@@ -53,7 +53,7 @@ def export_and_store_public_key(email, key_id, comment):
     if not public_key:
         return False, 'Error al exportar la clave pública.'
 
-    add_public_key(email, key_id, comment)
+    add_public_key(email, key_id, comment, public_key)
     return True, 'Clave pública exportada y guardada correctamente.'
 
 # Función para firmar el documento
@@ -76,12 +76,10 @@ def verify_document(signed_data, comment):
     if not key_id:
         return False, 'No hay una llave pública asignada al comentario ingresado.'
 
-    # Verificar si la clave ya está en el llavero
-    if not any(key['keyid'] == key_id for key in gpg.list_keys()):
-        # Importar la clave pública
-        import_result = gpg.import_keys(public_key)
-        if import_result.count == 0:
-            return False, 'Error al importar la llave pública.'
+    # Importar la clave pública
+    import_result = gpg.import_keys(public_key)
+    if import_result.count == 0:
+        return False, 'Error al importar la llave pública.'
 
     # Verificar la firma
     verified = gpg.verify(signed_data)
