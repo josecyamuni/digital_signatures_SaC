@@ -10,12 +10,15 @@ Este repositorio contiene una aplicación que tiene como objetivo ser utilizada 
 La aplicación ofrece las siguientes funciones principales:
 
 Añadir clave pública: Permite añadir una clave pública para la verificación de documentos firmados.
+
 Eliminar clave pública: Permite eliminar una clave pública que ya no es necesaria.
+
 Firmar documentos: Permite firmar documentos electrónicos para asegurar su integridad y autenticidad.
+
 Validar documentos firmados: Permite verificar documentos firmados para asegurar que no han sido alterados y que la firma es auténtica.
 
 ## Manual de Usuario
-Se ha generado un manual detallado para la creación de llaves y el uso de la aplicación. Por favor, consulta el archivo [manual.pdf](manual) para obtener instrucciones detalladas sobre cómo utilizar cada una de las funciones de la aplicación.
+Se ha generado un manual detallado para la creación de llaves y el uso de la aplicación. Por favor, consulta el archivo [Manual_de_usuario.pdf](manual) para obtener instrucciones detalladas sobre cómo utilizar cada una de las funciones de la aplicación.
 
 ## Instalación
 Para instalar y ejecutar la aplicación, sigue estos pasos:
