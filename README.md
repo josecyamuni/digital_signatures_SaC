@@ -18,7 +18,7 @@ Firmar documentos: Permite firmar documentos electrónicos para asegurar su inte
 Validar documentos firmados: Permite verificar documentos firmados para asegurar que no han sido alterados y que la firma es auténtica.
 
 ## Manual de Usuario
-Se ha generado un manual detallado para la creación de llaves y el uso de la aplicación. Por favor, consulta el archivo [Manual_de_usuario.pdf](manual) para obtener instrucciones detalladas sobre cómo utilizar cada una de las funciones de la aplicación.
+Se ha generado un manual detallado para la creación de llaves y el uso de la aplicación. Por favor, consulta el archivo [Manual_de_usuario.pdf](Manual_de_usuario.pdf) para obtener instrucciones detalladas sobre cómo utilizar cada una de las funciones de la aplicación.
 
 ## Instalación
 Para instalar y ejecutar la aplicación, sigue estos pasos:
