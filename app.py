@@ -7,63 +7,58 @@ Created on Mon May 27 07:59:44 2024
 
 import gnupg
 import streamlit as st
-import sqlalchemy as db
-from sqlalchemy.orm import sessionmaker
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import io
-import requests
+from PIL import Image
 
-# Configuración de GPG
-gpg = gnupg.GPG()
+# Configuración de las credenciales y acceso a la Google Sheet
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+client = gspread.authorize(creds)
 
-# Configuración de la base de datos
-engine = db.create_engine('sqlite:///keys.db')
-metadata = db.MetaData()
+# Abre la Google Sheet
+sheet = client.open("keys_database").sheet1  # Cambia "Nombre de tu Google Sheet" por el nombre de tu hoja
 
-# Definir la tabla 'keys'
-keys = db.Table('keys', metadata,
-    db.Column('id', db.Integer, primary_key=True),
-    db.Column('email', db.String, nullable=False, unique=True),
-    db.Column('comment', db.String, nullable=False),
-    db.Column('key_id', db.String, nullable=False, unique=True),  # Se agrega la columna para el key_id
-    db.Column('public_key', db.Text, nullable=False)  # Columna para almacenar la clave pública
-)
+# Función para agregar una clave pública a la base de datos
+def add_public_key(email, key_id, comment, public_key):
+    existing_records = sheet.get_all_records()
+    new_id = len(existing_records) + 1  # Genera un nuevo ID
+    new_key = [new_id, email.lower(), comment.lower(), key_id, public_key]
+    sheet.append_row(new_key)
 
-# Crear la tabla en la base de datos
-metadata.create_all(engine)
+# Función para eliminar una clave pública de la base de datos
+def delete_public_key(email, comment):
+    cells = sheet.findall(email.lower())
+    for cell in cells:
+        row = cell.row
+        row_values = sheet.row_values(row)
+        if row_values[2] == comment.lower():  # Verifica si el comentario coincide
+            sheet.delete_rows(row)
+            return True
+    return False
 
-Session = sessionmaker(bind=engine)
-session = Session()
+# Función para obtener el key_id y la clave pública asociada a un comentario
+def get_key_id_by_comment(comment):
+    records = sheet.get_all_records()
+    for record in records:
+        if record['comment'] == comment.lower():
+            return record['key_id'], record['public_key']
+    return None, None
 
 # Función para exportar la clave pública y guardarla en la base de datos
 def export_and_store_public_key(email, key_id, comment):
+    gpg = gnupg.GPG()
     public_key = gpg.export_keys(key_id)
     if not public_key:
         return False, 'Error al exportar la clave pública.'
 
-    new_key = keys.insert().values(email=email.lower(), key_id=key_id, comment=comment.lower(), public_key=public_key)
-    session.execute(new_key)
-    session.commit()
+    add_public_key(email, key_id, comment, public_key)
     return True, 'Clave pública exportada y guardada correctamente.'
-
-# Función para eliminar una clave pública de la base de datos
-def delete_public_key(email, comment):
-    key_to_delete = keys.delete().where(keys.c.email == email.lower(), keys.c.comment == comment.lower())
-    result = session.execute(key_to_delete)
-    if result.rowcount == 0:
-        return False
-    session.commit()
-    return True
-
-# Función para obtener el key_id y la clave pública asociada a un comentario
-def get_key_id_by_comment(comment):
-    key_record = session.query(keys).filter(keys.c.comment == comment.lower()).first()
-    if key_record:
-        return key_record.key_id, key_record.public_key
-    else:
-        return None, None
 
 # Función para firmar el documento
 def sign_document(document_data, key_id):
+    gpg = gnupg.GPG()
     if not key_id:
         return None, 'No se encontró el key_id asociado al comentario proporcionado.'
 
@@ -75,17 +70,16 @@ def sign_document(document_data, key_id):
 
 # Función para verificar el documento firmado
 def verify_document(signed_data, comment):
+    gpg = gnupg.GPG()
     key_id, public_key = get_key_id_by_comment(comment)
     
     if not key_id:
         return False, 'No hay una llave pública asignada al comentario ingresado.'
 
-    # Verificar si la clave ya está en el llavero
-    if not any(key['keyid'] == key_id for key in gpg.list_keys()):
-        # Importar la clave pública
-        import_result = gpg.import_keys(public_key)
-        if import_result.count == 0:
-            return False, 'Error al importar la llave pública.'
+    # Importar la clave pública
+    import_result = gpg.import_keys(public_key)
+    if import_result.count == 0:
+        return False, 'Error al importar la llave pública.'
 
     # Verificar la firma
     verified = gpg.verify(signed_data)
@@ -94,7 +88,14 @@ def verify_document(signed_data, comment):
 
 # Interfaz de Streamlit
 st.title('Documento Seguro: Firmado y verificación de documentos')
-st.subheader('Sigue al congreso')
+st.subheader('Sigue al Congreso')
+
+imagen_original = Image.open("images/logo.jpg")
+# Redimensiona la imagen
+nuevo_ancho = 200  # Define el nuevo ancho
+nuevo_alto = int((nuevo_ancho / imagen_original.width) * imagen_original.height)  # Mantén la proporción
+imagen_redimensionada = imagen_original.resize((nuevo_ancho, nuevo_alto))
+st.image(imagen_redimensionada)
 
 st.caption('Bienvenido a Documento Seguro, una aplicación avanzada diseñada para firmar y validar documentos electrónicamente, asegurando la autenticidad e integridad de la información contenida. Con esta app, los usuarios de Sigue al congreso pueden aplicar firmas digitales a sus documentos que garantiza que el contenido no ha sido alterado desde su firma. La aplicación utiliza tecnología de cifrado robusta, compatible con estándares de seguridad globales, para ofrecer una solución confiable tanto para individuos como para empresas que buscan proteger sus documentos sensibles.')
 
