@@ -51,6 +51,6 @@ Para validar un documento firmado, utiliza la función correspondiente en la int
 
 ### Ejemplo de uso
 <div style="text-align: center;">
-  <img src="gif_ale.gif" alt="gif">
+  <img src="images\gif_ale.gif" alt="gif">
 </div>
 
