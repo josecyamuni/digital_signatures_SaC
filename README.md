@@ -3,7 +3,7 @@
 ## Objetivo
 Este repositorio contiene una aplicación que tiene como objetivo ser utilizada por los trabajadores de Sigue al Congreso para firmar documentos que serán subidos a la Página Web de la organización
 <div style="text-align: center;">
-  <img src="app_foto.png" alt="gif">
+  <img src="images\app_foto.png" alt="gif">
 </div>
 
 ## Funciones
